@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Intervall Timer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      text-align: center;
+    }
+    .app {
+      max-width: 430px;
+      margin: 0 auto;
+      padding: 24px 18px 40px;
+    }
+    h1 { margin: 10px 0 24px; font-size: 30px; }
+    .row { margin: 16px 0; font-size: 18px; }
+    input {
+      margin-top: 8px;
+      width: 120px;
+      font-size: 30px;
+      padding: 10px;
+      border: 0;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .total { margin-top: 24px; font-size: 22px; opacity: 0.9; }
+    .timer { font-size: 92px; line-height: 1; font-weight: 800; margin: 34px 0 12px; }
+    .phase { font-size: 30px; margin-bottom: 28px; }
+    .round { font-size: 20px; margin-bottom: 20px; opacity: 0.8; }
+    button {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      border-radius: 14px;
+      padding: 18px 22px;
+      margin: 8px;
+      font-size: 22px;
+      font-weight: 700;
+      color: white;
+      min-width: 120px;
+      touch-action: manipulation;
+    }
+    #startButton { background: #19a64a; }
+    #pauseButton { background: #d68a00; }
+    #resetButton { background: #c62828; }
+    .hint { margin-top: 26px; font-size: 14px; opacity: 0.65; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Intervall Timer</h1>
+
+    <div class="row">
+      <div>Übungslänge Sekunden</div>
+      <input id="workInput" type="number" min="1" value="30" inputmode="numeric">
+    </div>
+
+    <div class="row">
+      <div>Pause Sekunden</div>
+      <input id="restInput" type="number" min="0" value="10" inputmode="numeric">
+    </div>
+
+    <div class="row">
+      <div>Runden</div>
+      <input id="roundsInput" type="number" min="1" value="10" inputmode="numeric">
+    </div>
+
+    <div class="total">Gesamtdauer: <strong id="totalDisplay">06:30</strong></div>
+    <div id="timerDisplay" class="timer">30</div>
+    <div id="phaseDisplay" class="phase">Training</div>
+    <div id="roundDisplay" class="round">Runde 1 / 10</div>
+
+    <button id="startButton" type="button">Start</button>
+    <button id="pauseButton" type="button">Pause</button>
+    <button id="resetButton" type="button">Reset</button>
+
+    <div class="hint">
+      Wichtig: Auf iPhone/iPad bitte wirklich in Safari über einen Web-Link öffnen,
+      nicht nur in der Dateien-Vorschau.
+    </div>
+  </div>
+
+<script>
+(function () {
+  var timerId = null;
+  var running = false;
+  var phase = "work";
+  var currentRound = 1;
+  var secondsLeft = 30;
+
+  var workInput = document.getElementById("workInput");
+  var restInput = document.getElementById("restInput");
+  var roundsInput = document.getElementById("roundsInput");
+  var totalDisplay = document.getElementById("totalDisplay");
+  var timerDisplay = document.getElementById("timerDisplay");
+  var phaseDisplay = document.getElementById("phaseDisplay");
+  var roundDisplay = document.getElementById("roundDisplay");
+
+  function numberFromInput(input, fallback) {
+    var n = parseInt(input.value, 10);
+    if (isNaN(n) || n < 0) return fallback;
+    return n;
+  }
+
+  function getWork() { return Math.max(1, numberFromInput(workInput, 30)); }
+  function getRest() { return Math.max(0, numberFromInput(restInput, 10)); }
+  function getRounds() { return Math.max(1, numberFromInput(roundsInput, 10)); }
+
+  function format(seconds) {
+    var m = Math.floor(seconds / 60);
+    var s = seconds % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  function updateTotal() {
+    var total = getWork() * getRounds() + getRest() * Math.max(getRounds() - 1, 0);
+    totalDisplay.textContent = format(total);
+    roundDisplay.textContent = "Runde " + currentRound + " / " + getRounds();
+
+    if (!running && phase === "work") {
+      secondsLeft = getWork();
+      timerDisplay.textContent = secondsLeft;
+    }
+  }
+
+  function showState() {
+    timerDisplay.textContent = secondsLeft;
+    phaseDisplay.textContent = phase === "work" ? "Training" : "Pause";
+    roundDisplay.textContent = "Runde " + currentRound + " / " + getRounds();
+  }
+
+  function tick() {
+    secondsLeft = secondsLeft - 1;
+
+    if (secondsLeft <= 0) {
+      if (phase === "work") {
+        if (getRest() > 0) {
+          phase = "rest";
+          secondsLeft = getRest();
+        } else {
+          currentRound = currentRound + 1;
+          if (currentRound > getRounds()) {
+            stopFinished();
+            return;
+          }
+          phase = "work";
+          secondsLeft = getWork();
+        }
+      } else {
+        currentRound = currentRound + 1;
+        if (currentRound > getRounds()) {
+          stopFinished();
+          return;
+        }
+        phase = "work";
+        secondsLeft = getWork();
+      }
+    }
+
+    showState();
+  }
+
+  function startTimer(event) {
+    if (event) event.preventDefault();
+    if (running) return;
+    running = true;
+    showState();
+    timerId = window.setInterval(tick, 1000);
+  }
+
+  function pauseTimer(event) {
+    if (event) event.preventDefault();
+    if (timerId !== null) {
+      window.clearInterval(timerId);
+      timerId = null;
+    }
+    running = false;
+  }
+
+  function resetTimer(event) {
+    if (event) event.preventDefault();
+    if (timerId !== null) {
+      window.clearInterval(timerId);
+      timerId = null;
+    }
+    running = false;
+    phase = "work";
+    currentRound = 1;
+    secondsLeft = getWork();
+    showState();
+    updateTotal();
+  }
+
+  function stopFinished() {
+    if (timerId !== null) {
+      window.clearInterval(timerId);
+      timerId = null;
+    }
+    running = false;
+    phaseDisplay.textContent = "Fertig";
+    timerDisplay.textContent = "0";
+    roundDisplay.textContent = "Fertig";
+  }
+
+  function bindButton(id, handler) {
+    var btn = document.getElementById(id);
+    btn.addEventListener("click", handler, false);
+    btn.addEventListener("touchend", handler, false);
+  }
+
+  bindButton("startButton", startTimer);
+  bindButton("pauseButton", pauseTimer);
+  bindButton("resetButton", resetTimer);
+
+  workInput.addEventListener("input", updateTotal, false);
+  restInput.addEventListener("input", updateTotal, false);
+  roundsInput.addEventListener("input", updateTotal, false);
+
+  updateTotal();
+  showState();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Intervall Timer" />
+<meta name="theme-color" content="#111111" />
+<title>Intervall Timer</title>
+<style>
+    :root {
+        --bg: #111111;
+        --card: #1d1d1f;
+        --text: #ffffff;
+        --muted: #a1a1aa;
+        --accent: #22c55e;
+        --danger: #ef4444;
+        --pause: #f59e0b;
+        --border: #2f2f35;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        background: radial-gradient(circle at top, #222 0%, var(--bg) 45%);
+        color: var(--text);
+        display: flex;
+        justify-content: center;
+        padding: 24px 16px;
+    }
+
+    .app {
+        width: 100%;
+        max-width: 430px;
+    }
+
+    h1 {
+        margin: 10px 0 20px;
+        font-size: 32px;
+        letter-spacing: -0.5px;
+        text-align: center;
+    }
+
+    .card {
+        background: rgba(29, 29, 31, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        padding: 20px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    label {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 7px;
+        text-align: center;
+    }
+
+    input {
+        width: 100%;
+        border: 1px solid var(--border);
+        background: #111114;
+        color: var(--text);
+        border-radius: 14px;
+        padding: 12px 8px;
+        font-size: 20px;
+        text-align: center;
+        outline: none;
+    }
+
+    input:focus {
+        border-color: var(--accent);
+    }
+
+    .summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--muted);
+        font-size: 15px;
+        margin: 8px 0 22px;
+    }
+
+    .summary strong {
+        color: var(--text);
+        font-weight: 700;
+    }
+
+    .phase {
+        text-align: center;
+        font-size: 22px;
+        font-weight: 700;
+        margin-top: 6px;
+        color: var(--accent);
+    }
+
+    .timer {
+        text-align: center;
+        font-size: clamp(80px, 24vw, 116px);
+        line-height: 1;
+        letter-spacing: -4px;
+        font-weight: 800;
+        margin: 18px 0 10px;
+    }
+
+    .round {
+        text-align: center;
+        color: var(--muted);
+        font-size: 18px;
+        margin-bottom: 24px;
+    }
+
+    .buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    button {
+        border: none;
+        border-radius: 16px;
+        padding: 16px 12px;
+        font-size: 19px;
+        font-weight: 700;
+        color: white;
+        cursor: pointer;
+    }
+
+    .primary { background: var(--accent); }
+    .secondary { background: #3f3f46; }
+    .danger { background: var(--danger); }
+
+    .hint {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.4;
+        text-align: center;
+        margin-top: 16px;
+    }
+
+    .paused .phase { color: var(--pause); }
+    .done .phase { color: var(--text); }
+</style>
+</head>
+<body>
+<main class="app">
+    <h1>Intervall Timer</h1>
+    <section class="card" id="card">
+        <div class="grid">
+            <div>
+                <label for="work">Übung</label>
+                <input id="work" type="number" min="1" value="30" inputmode="numeric" />
+            </div>
+            <div>
+                <label for="rest">Pause</label>
+                <input id="rest" type="number" min="0" value="10" inputmode="numeric" />
+            </div>
+            <div>
+                <label for="rounds">Runden</label>
+                <input id="rounds" type="number" min="1" value="10" inputmode="numeric" />
+            </div>
+        </div>
+
+        <div class="summary">
+            <span>Gesamtdauer: <strong id="total">00:00</strong></span>
+            <span>Rest: <strong id="remaining">00:00</strong></span>
+        </div>
+
+        <div class="phase" id="phase">Training</div>
+        <div class="timer" id="timer">30</div>
+        <div class="round" id="round">Runde 1 / 10</div>
+
+        <div class="buttons">
+            <button class="primary" id="startPause">Start</button>
+            <button class="danger" id="reset">Reset</button>
+        </div>
+
+        <p class="hint">Tipp: Auf dem iPhone in Safari öffnen → Teilen → „Zum Home-Bildschirm“.</p>
+    </section>
+</main>
+
+<script>
+    const workInput = document.getElementById('work');
+    const restInput = document.getElementById('rest');
+    const roundsInput = document.getElementById('rounds');
+    const totalEl = document.getElementById('total');
+    const remainingEl = document.getElementById('remaining');
+    const timerEl = document.getElementById('timer');
+    const phaseEl = document.getElementById('phase');
+    const roundEl = document.getElementById('round');
+    const startPauseBtn = document.getElementById('startPause');
+    const resetBtn = document.getElementById('reset');
+    const card = document.getElementById('card');
+
+    let intervalId = null;
+    let running = false;
+    let phase = 'work';
+    let currentRound = 1;
+    let secondsLeftInPhase = 30;
+    let totalRemaining = 0;
+
+    function value(input, fallback) {
+        const n = parseInt(input.value, 10);
+        return Number.isFinite(n) && n >= 0 ? n : fallback;
+    }
+
+    function format(seconds) {
+        seconds = Math.max(0, seconds);
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function getConfig() {
+        return {
+            work: Math.max(1, value(workInput, 30)),
+            rest: Math.max(0, value(restInput, 10)),
+            rounds: Math.max(1, value(roundsInput, 10))
+        };
+    }
+
+    function calcTotal() {
+        const { work, rest, rounds } = getConfig();
+        return (work * rounds) + (rest * Math.max(0, rounds - 1));
+    }
+
+    function beep() {
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            const ctx = new AudioContext();
+            const oscillator = ctx.createOscillator();
+            const gain = ctx.createGain();
+            oscillator.connect(gain);
+            gain.connect(ctx.destination);
+            oscillator.frequency.value = 880;
+            gain.gain.value = 0.08;
+            oscillator.start();
+            setTimeout(() => {
+                oscillator.stop();
+                ctx.close();
+            }, 180);
+        } catch (e) {}
+        if (navigator.vibrate) navigator.vibrate(120);
+    }
+
+    function updateDisplay() {
+        const { rounds } = getConfig();
+        totalEl.textContent = format(calcTotal());
+        remainingEl.textContent = format(totalRemaining);
+        timerEl.textContent = secondsLeftInPhase;
+        phaseEl.textContent = phase === 'work' ? 'Training' : 'Pause';
+        roundEl.textContent = 'Runde ' + currentRound + ' / ' + rounds;
+
+        card.classList.toggle('paused', phase === 'rest');
+        card.classList.remove('done');
+    }
+
+    function resetTimer() {
+        clearInterval(intervalId);
+        intervalId = null;
+        running = false;
+        phase = 'work';
+        currentRound = 1;
+        const { work } = getConfig();
+        secondsLeftInPhase = work;
+        totalRemaining = calcTotal();
+        startPauseBtn.textContent = 'Start';
+        updateDisplay();
+    }
+
+    function finishTimer() {
+        clearInterval(intervalId);
+        intervalId = null;
+        running = false;
+        totalRemaining = 0;
+        timerEl.textContent = '✓';
+        phaseEl.textContent = 'Fertig';
+        remainingEl.textContent = '00:00';
+        startPauseBtn.textContent = 'Start';
+        card.classList.add('done');
+        beep();
+    }
+
+    function nextPhase() {
+        const { work, rest, rounds } = getConfig();
+        beep();
+
+        if (phase === 'work') {
+            if (currentRound >= rounds) {
+                finishTimer();
+                return;
+            }
+            phase = 'rest';
+            secondsLeftInPhase = rest;
+            if (rest === 0) nextPhase();
+        } else {
+            currentRound += 1;
+            phase = 'work';
+            secondsLeftInPhase = work;
+        }
+        updateDisplay();
+    }
+
+    function tick() {
+        if (secondsLeftInPhase > 0) {
+            secondsLeftInPhase -= 1;
+            totalRemaining -= 1;
+            updateDisplay();
+        }
+
+        if (secondsLeftInPhase === 0) {
+            setTimeout(() => {
+                if (running) nextPhase();
+            }, 250);
+        }
+    }
+
+    function startPause() {
+        if (!running) {
+            running = true;
+            startPauseBtn.textContent = 'Pause';
+            intervalId = setInterval(tick, 1000);
+        } else {
+            running = false;
+            startPauseBtn.textContent = 'Weiter';
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+    }
+
+    [workInput, restInput, roundsInput].forEach(input => {
+        input.addEventListener('input', resetTimer);
+    });
+
+    startPauseBtn.addEventListener('click', startPause);
+    resetBtn.addEventListener('click', resetTimer);
+
+    resetTimer();
+</script>
+</body>
+</html>

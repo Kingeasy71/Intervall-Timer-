@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intervall Timer iOS</title>
+<style>
+body{margin:0;background:#111;color:#fff;font-family:-apple-system,Arial,sans-serif;text-align:center}
+.container{max-width:420px;margin:auto;padding:24px}
+h1{font-size:32px}
+.row{margin:18px 0}
+input{width:120px;font-size:28px;text-align:center;padding:10px;border:none;border-radius:12px}
+.total{margin-top:24px;font-size:22px}
+.timer{font-size:100px;font-weight:800;margin-top:30px;transition:.2s}
+.warning{color:#ff5252;transform:scale(1.08)}
+.phase{font-size:30px;margin-top:10px}
+.round{margin-top:10px;opacity:.8}
+button{border:none;border-radius:14px;padding:18px 24px;margin:10px;font-size:22px;font-weight:700;color:white}
+.start{background:#16a34a}.pause{background:#d18b00}.reset{background:#c62828}
+.note{margin-top:25px;font-size:14px;opacity:.7}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Intervall Timer</h1>
+
+<div class="row">
+<div>Training Sekunden</div>
+<input id="work" type="number" value="30">
+</div>
+
+<div class="row">
+<div>Pause Sekunden</div>
+<input id="rest" type="number" value="10">
+</div>
+
+<div class="row">
+<div>Runden</div>
+<input id="rounds" type="number" value="10">
+</div>
+
+<div class="total">Gesamtdauer: <span id="total">06:30</span></div>
+
+<div class="timer" id="timer">30</div>
+<div class="phase" id="phase">Training</div>
+<div class="round" id="round">Runde 1 / 10</div>
+
+<div style="margin-top:30px">
+<button class="start" id="startBtn">Start</button>
+<button class="pause" id="pauseBtn">Pause</button>
+<button class="reset" id="resetBtn">Reset</button>
+</div>
+
+<div class="note">Falls kein Ton hörbar: iPhone nicht auf lautlos.</div>
+</div>
+
+<script>
+let interval=null;
+let running=false;
+let phase="work";
+let round=1;
+let time=30;
+let audioCtx=null;
+
+const workInput=document.getElementById("work");
+const restInput=document.getElementById("rest");
+const roundsInput=document.getElementById("rounds");
+
+const timerEl=document.getElementById("timer");
+const phaseEl=document.getElementById("phase");
+const roundEl=document.getElementById("round");
+const totalEl=document.getElementById("total");
+
+function initAudio(){
+ if(!audioCtx){
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+ }
+ if(audioCtx.state==="suspended"){
+  audioCtx.resume();
+ }
+}
+
+function beep(freq,duration){
+ if(!audioCtx)return;
+
+ const osc=audioCtx.createOscillator();
+ const gain=audioCtx.createGain();
+
+ osc.connect(gain);
+ gain.connect(audioCtx.destination);
+
+ osc.frequency.value=freq;
+ gain.gain.value=0.25;
+
+ osc.start();
+ osc.stop(audioCtx.currentTime+duration/1000);
+}
+
+function workVal(){return Math.max(1,parseInt(workInput.value)||30);}
+function restVal(){return Math.max(0,parseInt(restInput.value)||10);}
+function roundsVal(){return Math.max(1,parseInt(roundsInput.value)||10);}
+
+function format(sec){
+ let m=Math.floor(sec/60);
+ let s=sec%60;
+ return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+}
+
+function updateTotal(){
+ let total=workVal()*roundsVal()+restVal()*(roundsVal()-1);
+ totalEl.textContent=format(total);
+
+ if(!running){
+  timerEl.textContent=workVal();
+ }
+}
+
+function updateDisplay(){
+ timerEl.textContent=time;
+
+ phaseEl.textContent=phase==="work"?"Training":"Pause";
+
+ roundEl.textContent="Runde "+round+" / "+roundsVal();
+
+ if(time<=3){
+  timerEl.classList.add("warning");
+ }else{
+  timerEl.classList.remove("warning");
+ }
+}
+
+function tick(){
+ time--;
+
+ if(time>0 && time<=3){
+  beep(1200,120);
+ }
+
+ if(time<=0){
+
+  beep(700,250);
+
+  if(phase==="work"){
+
+   if(restVal()>0){
+
+    phase="rest";
+    time=restVal();
+
+   }else{
+
+    round++;
+
+    if(round>roundsVal()){
+     finish();
+     return;
+    }
+
+    phase="work";
+    time=workVal();
+   }
+
+  }else{
+
+   round++;
+
+   if(round>roundsVal()){
+    finish();
+    return;
+   }
+
+   phase="work";
+   time=workVal();
+  }
+ }
+
+ updateDisplay();
+}
+
+function startTimer(){
+
+ initAudio();
+
+ if(running)return;
+
+ running=true;
+
+ interval=setInterval(tick,1000);
+}
+
+function pauseTimer(){
+ clearInterval(interval);
+ running=false;
+}
+
+function resetTimer(){
+
+ clearInterval(interval);
+
+ running=false;
+ phase="work";
+ round=1;
+ time=workVal();
+
+ updateDisplay();
+}
+
+function finish(){
+
+ clearInterval(interval);
+
+ running=false;
+
+ beep(500,500);
+
+ timerEl.textContent="0";
+ phaseEl.textContent="Fertig";
+}
+
+document.getElementById("startBtn").addEventListener("click",startTimer);
+document.getElementById("pauseBtn").addEventListener("click",pauseTimer);
+document.getElementById("resetBtn").addEventListener("click",resetTimer);
+
+workInput.addEventListener("input",updateTotal);
+restInput.addEventListener("input",updateTotal);
+roundsInput.addEventListener("input",updateTotal);
+
+updateTotal();
+updateDisplay();
+</script>
+</body>
+</html>
